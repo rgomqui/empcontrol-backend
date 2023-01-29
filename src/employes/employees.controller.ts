@@ -1,8 +1,17 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe } from '@nestjs/common';
-import { EmployesService } from './employees.service';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post
+} from '@nestjs/common';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { CreateEmployeeDto } from './dto/create-employe.dto';
 import { UpdateEmployeeDto } from './dto/update-employe.dto';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { EmployesService } from './employees.service';
 
 @Controller('employees')
 export class EmployesController {
@@ -19,12 +28,20 @@ export class EmployesController {
   }
 
   @Get(':term')
-  findOne(@Param('term')  term: string) {
+  findOne(@Param('term') term: string) {
     return this.employesService.findOne(term);
   }
 
+  @Get('activate/:id')
+  activateEmployee(@Param('id') id: string) {
+    return this.employesService.activateEmployee(id);
+  }
+
   @Patch(':id')
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() updateEmployeDto: UpdateEmployeeDto) {
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateEmployeDto: UpdateEmployeeDto,
+  ) {
     return this.employesService.update(id, updateEmployeDto);
   }
 

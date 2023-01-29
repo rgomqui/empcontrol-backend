@@ -1,13 +1,7 @@
-import {
-  HttpException,
-  HttpStatus,
-  Injectable,
-  Logger,
-  NotFoundException
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
-import { Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import { validate as isUUID } from 'uuid';
 
 import { CreateEmployeeDto } from './dto/create-employe.dto';
@@ -25,11 +19,7 @@ export class EmployesService {
     return await this.employeeRepository
       .save(createEmployeDto)
       .catch((error) => {
-        console.log(error);
-
-        this.logger.error(error.detail);
-
-        throw new HttpException(error.detail, HttpStatus.BAD_REQUEST);
+        this.handleException(error.detail);
       });
   }
 
@@ -42,12 +32,29 @@ export class EmployesService {
   }
 
   async findOne(term: string) {
+    let employees: Employee[];
     if (isUUID(term)) {
-      return await this.employeeRepository.findOneBy({
+      const employee = await this.employeeRepository.findOneBy({
         id: term,
       });
+      employees.push(employee); //TODO
+    } else {
+      employees = await this.employeeRepository.find({
+        where: [
+          {name: ILike(`%${term}%`)},
+          {surname: ILike(`%${term}%`)},
+          {identityNumber: ILike(`%${term}%`)},
+          {phoneNumber: ILike(`%${term}%`)}
+        ]
+      });
     }
-    return 'no es uuid';
+    console.log(employees);
+    
+    if (!employees || employees.length === 0) { //TODO
+      this.handleException(`The employee with term \"${term}\" not found`);
+    }
+
+    return employees;
   }
 
   async update(id: string, updateEmployeDto: UpdateEmployeeDto) {
@@ -56,8 +63,13 @@ export class EmployesService {
     });
 
     if (!employee) {
-      throw new NotFoundException(`The employee with id ${id} not found`);
+      this.handleException(`The employee with id ${id} not found`);
     }
+    // No deja modificar el atributo active
+    if (updateEmployeDto.isActive) {
+      updateEmployeDto.isActive = employee.isActive;
+    }
+
     await this.employeeRepository.update(id, updateEmployeDto);
     return this.employeeRepository.findOneBy({
       id: id,
@@ -68,11 +80,28 @@ export class EmployesService {
     const employee = await this.employeeRepository.findOneBy({
       id: id,
     });
-
+    if (!employee) {
+      this.handleException(`The employee with id ${id} not found`);
+    }
     if (employee.isActive) {
       employee.isActive = !employee.isActive;
     }
 
     return await this.employeeRepository.save(employee);
+  }
+
+  async activateEmployee(id: string) {
+    const employee = await this.employeeRepository.findOneBy({
+      id: id,
+    });
+
+    employee.isActive = true;
+
+    return this.employeeRepository.save(employee);
+  }
+
+  private handleException(message: any) {
+    this.logger.error(message);
+    throw new BadRequestException(message);
   }
 }
